@@ -1,3 +1,18 @@
+# OrangeCrab code for MEGAphone R4
+
+The MEGAphone R4 has an Orange Crab as "utility FPGA", which largely controls
+the power system for the MEGAphone. The idea is that the main FPGA (which sucks
+more power) can stay off when the phone is idle, and the utility FPGA can notice
+if the user presses the power button, or if one of the cellular modems (or other
+communications modules) triggers an event that needs the main FPGA, e.g., an 
+incoming phone call or SMS message.
+
+So all it needs to do is to buffer serial comms from the communications bays, and
+monitor the buttons and control the power enable lines.  Well, it's not _quite_ 
+that simple, but its a pretty good approximation.
+
+# Based on:
+
 # OrangeCrab example projects
 This repository contains example code to be run on the OrangeCrab.
 

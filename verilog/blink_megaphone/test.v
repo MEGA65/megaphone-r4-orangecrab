@@ -23,6 +23,10 @@ module testbed (
 	  .sda(sda)
 	  );
 
+   pullup(sda);
+   pullup(scl);
+   
+   
 initial
   begin
      $display("starting");
@@ -35,7 +39,7 @@ initial
 	  #20; // low for 20 * timescale = 20 ns
 
 	  if ((sda != sda_last) || (scl != scl_last)) begin
-	     $display("SDA=", sda, ", SCL=", scl);
+	     $display("testbed: SDA=", sda, ", SCL=", scl);
 	     sda_last <= sda;
 	     scl_last <= scl;
 	     

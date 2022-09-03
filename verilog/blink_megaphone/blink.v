@@ -84,6 +84,7 @@ module top (
    end
    
    always @(posedge clk48) begin
+
       // Detect rising edge of busy signals
       i2c_busy_last <= i2c_busy;
 

@@ -208,8 +208,8 @@ end
           //idle state
           if((ena == 1'b1)) begin
             //transaction requested
-            //              report "Accepting job: addr=$" & to_hstring(addr) & ", rw= " & std_logic'image(rw);
-            busy <= 1'b1;
+             $display($time,": Accepting job: addr=$%x",addr,", rw= ",rw);	     
+             busy <= 1'b1;
             //flag busy
             addr_rw <= {addr,rw};
             //collect requested slave address and command
@@ -467,13 +467,15 @@ end
   //generate start condition
       stop : sda_ena_n <=  ~data_clk_prev;
   //generate stop condition
-      default : sda_ena_n <= sda_int;
-    endcase
+      default : begin
+	 sda_ena_n <= sda_int;	 
+      end
+    endcase // case (state)
+
   end
 
-  //set to internal sda signal    
-  //set scl and sda outputs
-  assign scl = (((swap == 1'b0) && (scl_ena == 1'b1 && scl_clk == 1'b0)) || ((swap == 1'b1) && (sda_ena_n == 1'b0)) || (debug_scl == 1'b1)) ? 1'b0 : 1'bZ;
-  assign sda = (((swap == 1'b1) && (scl_ena == 1'b1 && scl_clk == 1'b0)) || ((swap == 1'b0) && (sda_ena_n == 1'b0)) || (debug_sda == 1'b1)) ? 1'b0 : 1'bZ;
-
+     //Propagate internal sda/scl signals to scl and sda outputs
+     assign sda = (((swap == 1'b1) && (scl_ena == 1'b1 && scl_clk == 1'b0)) || ((swap == 1'b0) && (sda_ena_n == 1'b0)) || (debug_sda == 1'b1)) ? 1'b0 : 1'bZ;
+     assign scl = (((swap == 1'b0) && (scl_ena == 1'b1 && scl_clk == 1'b0)) || ((swap == 1'b1) && (sda_ena_n == 1'b0)) || (debug_scl == 1'b1)) ? 1'b0 : 1'bZ;
+   
 endmodule

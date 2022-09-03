@@ -98,7 +98,7 @@ module top (
       
       // Retrigger I2C every ~0.5 sec
       counter <= counter + 1;
-//      if (counter[23:0] == 24'd0) busy_count <= 0;      
+      if (counter[23:0] == 24'd0) busy_count <= 99;
       
       // Now each time i2c_busy goes high we schedule
       // the next read or write action to the I2C state machine

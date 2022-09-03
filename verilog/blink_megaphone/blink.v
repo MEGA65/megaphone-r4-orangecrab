@@ -1,21 +1,22 @@
 `default_nettype none
 module top (
-	input clk48,
+	input  clk48,
 	output rgb_led0_r,
 	output rgb_led0_g,
 	output rgb_led0_b,
 	output gpio_0,
-	input gpio_a0,
-	inout scl,
-	inout sda
+	input  gpio_a0,
+	inout  scl,
+	inout  sda,
+	input  usr_btn,
+	output rst_n
 );
 	parameter signed [31:0] INPUT_CLK_RATE = 48000000;
-	parameter signed [31:0] TARGET_SCL_RATE = 400000;
+	parameter signed [31:0] TARGET_SCL_RATE = 100000;
 	parameter [7:0] ADDRESS = 8'h25;
 	reg [31:0] counter = 0;
 	always @(posedge clk48) counter <= counter + 1;
-	assign rgb_led0_g = ~gpio_a0;
-	assign gpio_0 = 1'b1;
+//	assign rgb_led0_g = ~gpio_a0;
 	wire bus_clear;
 	reg transfer_start = 1'b0;
 	reg transfer_continues = 1'b0;
@@ -47,6 +48,9 @@ module top (
 		.address_err(address_err)
 	);
 
+   // Reset when btn0 is pressed
+   assign rst_n = usr_btn;   
+   
 	reg [15:0] MODEL_ID = 16'h5647;
 	reg [16:0] PRE_STANDBY [0:3];
 	initial begin
@@ -73,8 +77,15 @@ initial begin
 	reg model_err = 1'b0;
 	wire ready;
 
+
+   //
+   // Test: Toggle 5V line
+   //
+   assign gpio_0 = counter[24];
+
 	assign rgb_led0_r = byte_counter[0];
-	assign rgb_led0_g = ~transfer_start;
+   assign rgb_led0_g = ~transfer_start;
+   //assign rgb_led0_g = usr_btn;   
 	assign rgb_led0_b = ~transfer_continues;
 
 	assign ready = ((sensor_state == 3'd0) || (sensor_state == 3'd2)) || (sensor_state == 3'd4);

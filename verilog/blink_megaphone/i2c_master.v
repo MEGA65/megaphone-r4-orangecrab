@@ -202,7 +202,6 @@ end
     end else begin
       if((data_clk == 1'b1 && data_clk_prev == 1'b0)) begin
         //data clock rising edge
-         $display("state = ",state);
         case(state)
         ready : begin
           //idle state

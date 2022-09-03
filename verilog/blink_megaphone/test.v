@@ -26,11 +26,12 @@ module testbed (
    pullup(sda);
    pullup(scl);
    
-   
 initial
   begin
+    $dumpfile("test.vcd");
+     $dumpvars(0);     
      $display("starting");
-     for (cycles=0;cycles<10000;cycles++)
+     for (cycles=0;cycles<100000;cycles++)
        begin
 	  clk48 = 1'b1; 
 	  #20; // high for 20 * timescale = 20 ns

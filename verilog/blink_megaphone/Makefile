@@ -82,6 +82,10 @@ dfu: $(PROJ).dfu
 %.vcd: %.ys
 	yosys -s "$<"
 
+test:
+	iverilog -o blink test.v blink.v i2c_master.v  && ./blink 
+
+
 # Run the simulation to create the .vcd file, then view it with gtkwave.
 # If you don't have gtkwave, you can get it from http://gtkwave.sourceforge.net/
 sim: $(PROJ).vcd

@@ -1,9 +1,9 @@
 `default_nettype none
 module top (
 	    input  clk48,
-	    output rgb_led0_r,
-	    output rgb_led0_g,
-	    output rgb_led0_b,
+	    output reg rgb_led0_r,
+	    output reg rgb_led0_g,
+	    output reg rgb_led0_b,
 	    output gpio_0,
 	    input  gpio_a0,
 	    inout  scl,
@@ -17,7 +17,6 @@ module top (
       
    // Counter for timed events
    reg [31:0] 	   counter = 0;
-   always @(posedge clk48) counter <= counter + 1;
    
    // I2C bus speed
    parameter signed [31:0] INPUT_CLK_RATE = 48000000;
@@ -29,11 +28,13 @@ module top (
    reg 		   i2c_command_en = 0;
    reg 		   i2c_rw;
    reg [7:0] 	   i2c_wdata;
-   reg [7:0] 	   i2c_rdata;
-   reg 		   i2c_error;
-   reg 		   i2c_busy;
+   wire [7:0] 	   i2c_rdata;
+   wire		   i2c_error;
+   wire		   i2c_busy;
    reg 		   i2c_busy_last = 0;
-   reg 		   i2c_reset_n = 1;
+   reg 		   i2c_reset_n = 0;
+
+   reg [1:0] 	   i2c_busy_prev_state = 0;
    
    
    // I2C bus   
@@ -53,14 +54,14 @@ module top (
 	      .ack_error(i2c_error),
 	      .sda(sda),
 	      .scl(scl),
-	      .swap(0),
-	      .debug_scl(0),
-	      .debug_sda(0)
+	      .swap(1'd0),
+	      .debug_scl(1'd0),
+	      .debug_sda(1'd0)
 	      );
 
 
    // State machine for performing I2C operations
-   reg [7:0] 	   busy_count = 0;
+   reg [7:0] 	   busy_count;
    
    
    //
@@ -71,35 +72,98 @@ module top (
    //
    // Debug output on RGB LED
    //    
-   assign rgb_led0_r = 0;   
-   assign rgb_led0_g = 1;   
-   assign rgb_led0_b = 0;   
+//   assign rgb_led0_r = i2c_busy;   
+//   assign rgb_led0_g = busy_count[0];   
+//   assign rgb_led0_b = counter[24];   
+
+   initial begin
+     rgb_led0_r <= ~0;
+     rgb_led0_g <= ~0;
+     rgb_led0_b <= ~0;
+     busy_count <= 99;
+   end
    
    always @(posedge clk48) begin
       // Detect rising edge of busy signals
       i2c_busy_last <= i2c_busy;
+
+      rgb_led0_r = ~busy_count[0];      
+      rgb_led0_g = ~busy_count[1];      
+      rgb_led0_b = ~busy_count[2];      
+//      rgb_led0_g = ~counter[24];      
       
-      if ((busy_count == 8'd0) && (i2c_busy == 0)) begin
-	 // On initial start up
-	 busy_count <= 8'd1;
-      end
+      // Clear initial reset of I2C master
+      i2c_reset_n <= 1;
+      
+      // Retrigger I2C every ~0.5 sec
+      counter <= counter + 1;
+//      if (counter[23:0] == 24'd0) busy_count <= 0;      
       
       // Now each time i2c_busy goes high we schedule
       // the next read or write action to the I2C state machine
-      if ((i2c_busy == 1) && (i2c_busy_last == 0)) begin
+      if ( { i2c_busy,i2c_busy_last } != i2c_busy_prev_state) begin
+	 $display($time,": i2c_busy=",i2c_busy,", i2c_busy_last=",i2c_busy_last);
+	 i2c_busy_prev_state <= { i2c_busy,i2c_busy_last};	 
+      end
+      
+      if ( ((i2c_busy == 1) && (i2c_busy_last == 0))
+	   || ( busy_count == 99 && i2c_busy == 0 ) )
+	  begin
+
+	 // Advance to next state in the FSM
+	 if ( busy_count != 8'd10 ) begin
+	    busy_count <= busy_count + 1;
+	    rgb_led0_b = ~1;	 
+	 end
+	 	 
+	 // Schedule I2C byte transfers
+	 if ( busy_count != 99 ) begin
+	    $display("dispatching I2C command, busy_count=", busy_count);
+	 end
+	 else
+	   $display("Kick-starting I2C communications");	    
+	 
 	 case (busy_count)
-	   8'd1: begin
-	      // Send address and start transaction
+	   8'd99: begin
+	      // Send dummy command to get things running
 	      i2c_command_en <= 1;
 	      i2c_rw <= 1;
 	      i2c_addr <= ADDRESS;
+	      busy_count <= 0;	      
+	   end
+	   8'd0: begin
+	      // Send address and start write transaction to select register 0
+	      i2c_command_en <= 1;
+	      i2c_rw <= 0;
+	      i2c_addr <= ADDRESS;
+	      i2c_wdata <= 8'd0;
+	      rgb_led0_g = ~1;	 
+	      rgb_led0_b = ~0;	 
+	   end
+	   8'd1: begin
+	      // Switch to read
+	      i2c_command_en <= 1;
+	      i2c_rw <= 1;
+	      rgb_led0_r = ~1;	 
+	      rgb_led0_g = ~0;	 
+	     end	   
+	   8'd2: begin
+	      // Read 1st byte
+	      i2c_command_en <= 1;
+	      i2c_rw <= 1;
+	   end 
+	   8'd3: begin
+	      // Read 2nd byte
+	      i2c_command_en <= 1;
+	      i2c_rw <= 1;
+	   end
+	   8'd4: begin
+	      // Read last byte
+	      i2c_command_en <= 0;	 
 	   end	   
 	   
 	 endcase // case (sensor_state)
-	 
-	 // Advance to next state in the FSM
-	 busy_count <= busy_count + 1;
-	 
+
       end // if i2c_busy
    end // always @ (posedge clk48)
    

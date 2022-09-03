@@ -104,7 +104,7 @@ parameter [3:0]
   mstr_ack = 7,
   stop = 8;
   //needed states
-reg [3:0] state;  //state machine
+reg [3:0] state = ready;  //state machine
 reg data_clk;  //data clock for sda
 reg data_clk_prev;  //data clock during previous system clock
 reg scl_clk;  //constantly running internal scl
@@ -118,6 +118,11 @@ reg [31:0] bit_cnt = 7;  //tracks bit number in transaction
 reg stretch = 1'b0;  //identifies if slave is stretching scl
 reg ack_error_int = 1'b0;  //local copy of ack_error for checking
 
+initial begin
+      busy <= 1'b0;
+end
+   
+   
   //generate the timing for the bus clock (scl_clk) and the data clock (data_clk)
   always @(posedge clk) begin : P1
     reg [31:0] count;
@@ -173,7 +178,10 @@ reg ack_error_int = 1'b0;  //local copy of ack_error for checking
 
   //state machine and writing to sda during scl low (data_clk rising edge)
   always @(posedge clk) begin
+     
     if((reset_n == 1'b0)) begin
+       $display("i2c_master RESET");
+       
       //reset asserted
       state <= ready;
       //return to initial state
@@ -194,7 +202,7 @@ reg ack_error_int = 1'b0;  //local copy of ack_error for checking
     end else begin
       if((data_clk == 1'b1 && data_clk_prev == 1'b0)) begin
         //data clock rising edge
-        //        report "state = " & machine'image(state);
+         $display("state = ",state);
         case(state)
         ready : begin
           //idle state

@@ -35,7 +35,8 @@ module top (
    reg 		   i2c_reset_n = 0;
 
    reg [1:0] 	   i2c_busy_prev_state = 0;
-   
+   // Remember which register pair we are writing to
+   reg [1:0] 	   reg_pair = 2'b10; 	      
    
    // I2C bus   
    i2c_master #(
@@ -81,6 +82,9 @@ module top (
      rgb_led0_g <= ~0;
      rgb_led0_b <= ~0;
      busy_count <= 99;
+      // Start by setting up inversion and DDR bits for ports
+      reg_pair <= 2'b10;
+      
    end
    
    always @(posedge clk48) begin
@@ -129,7 +133,7 @@ module top (
 	      i2c_command_en <= 1;
 	      i2c_rw <= 0;
 	      i2c_addr <= ADDRESS;
-	      i2c_wdata <= 8'h06;  // Starting register number
+	      i2c_wdata <= 8'd2;
 	      busy_count <= 0;	      
 	   end
 	   8'd0: begin
@@ -139,25 +143,86 @@ module top (
 	     end	   
 
 	   8'd1: begin
-	      // Send address and start write transaction to select register 6
+	      // Send address and start write transaction to select register 2
+	      // except during start-up, when we initialise the other registers
 	      i2c_command_en <= 1;
 	      i2c_rw <= 0;
 	      i2c_addr <= ADDRESS;
-	      i2c_wdata <= 8'd6;
+	      // Select the register pair to write to	      
+	      i2c_wdata[7:3] <= 5'd0;     
+	      i2c_wdata[2:1] <= reg_pair;
+	      i2c_wdata[0] <= 1'b0;     
 	     end
  	   8'd2: begin
-	      // Write to port 6
+	      // Write to register 2 : Power rail enables
+	      // (or reg 4 (inversions of port 0) or reg 6 (ddr of port 0)
 	      i2c_command_en <= 1;	      
 	      i2c_rw <= 0;
-	      i2c_wdata <= counter[31:24];
-	     
+	      case (reg_pair)
+		2'b01: begin	       
+		   i2c_wdata[7:6] <= 2'b00;	      
+		   i2c_wdata[5:0] <= counter[29:24];
+		end
+		2'b10: i2c_wdata <= 8'h00; // port 0 inversions
+		2'b11: i2c_wdata <= 8'b11000000; // port 0 DDR
+	      endcase
+	     end	   
+ 	   8'd3: begin
+	      // Write to register 3 : Power rail enable in bit 5 for headphones amplifier
+	      i2c_command_en <= 1;	      
+	      i2c_rw <= 0;
+	      case (reg_pair)
+		2'b01: begin
+		   i2c_wdata[7:6] <= 2'b00;	      
+		   i2c_wdata[4:0] <= 5'b00000;	      
+		   i2c_wdata[5] <= counter[25];
+		end
+		2'b10: i2c_wdata <= 8'h00; // port 1 inversions
+		2'b11: i2c_wdata <= 8'b11011111; // port 1 DDR
+	      endcase
+	     end	   
+	   8'd4: begin
+	      // Complete write transaction
+	      i2c_command_en <= 0;
+	      // Select the next register pair to write
+	      case (reg_pair)
+		2'b10: reg_pair <= 2'b11; // setup DDRs for ports after clearing inversions
+		2'b11: reg_pair <= 2'b01; // then write port 0/1 outputs forever after
+	      endcase // case reg_pair
+	      
+	   end
+
+/*
+ 	   8'd4: begin
+	      // Write to port 4 : Invert bits of port 0 (disable for all bits)
+	      i2c_command_en <= 1;	      
+	      i2c_rw <= 0;
+	      i2c_wdata <= 8'h00;	      
+	     end	   
+ 	   8'd5: begin
+	      // Write to port 5 : Invert bits of port 1 (disable for all bits)
+	      i2c_command_en <= 1;	      
+	      i2c_rw <= 0;
+	      i2c_wdata <= 8'h00;	      
+	     end	   
+ 	   8'd6: begin
+	      // Write to port 6 : DDR for port 0 (1=input, 0=output)
+	      i2c_command_en <= 1;	      
+	      i2c_rw <= 0;
+	      i2c_wdata <= 8'b11000000;	      
+	     end	   
+ 	   8'd7: begin
+	      // Write to port 7 : DDR for port 0 (1=input, 0=output)
+	      i2c_command_en <= 1;	      
+	      i2c_rw <= 0;
+	      i2c_wdata <= 8'b11011111;	      
 	     end	   
 
-	   8'd3: begin
+	   8'd8: begin
 	      // Complete write transaction
 	      i2c_command_en <= 0;
 	   end
-	   
+*/	   
 	 endcase // case (sensor_state)
 
       end // if i2c_busy

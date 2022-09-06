@@ -133,7 +133,7 @@ module top (
 	      i2c_command_en <= 1;
 	      i2c_rw <= 0;
 	      i2c_addr <= ADDRESS;
-	      i2c_wdata <= 8'd2;
+	      i2c_wdata <= 8'd0; // Port 0 read address
 	      busy_count <= 0;	      
 	   end
 	   8'd0: begin
@@ -191,38 +191,6 @@ module top (
 	      endcase // case reg_pair
 	      
 	   end
-
-/*
- 	   8'd4: begin
-	      // Write to port 4 : Invert bits of port 0 (disable for all bits)
-	      i2c_command_en <= 1;	      
-	      i2c_rw <= 0;
-	      i2c_wdata <= 8'h00;	      
-	     end	   
- 	   8'd5: begin
-	      // Write to port 5 : Invert bits of port 1 (disable for all bits)
-	      i2c_command_en <= 1;	      
-	      i2c_rw <= 0;
-	      i2c_wdata <= 8'h00;	      
-	     end	   
- 	   8'd6: begin
-	      // Write to port 6 : DDR for port 0 (1=input, 0=output)
-	      i2c_command_en <= 1;	      
-	      i2c_rw <= 0;
-	      i2c_wdata <= 8'b11000000;	      
-	     end	   
- 	   8'd7: begin
-	      // Write to port 7 : DDR for port 0 (1=input, 0=output)
-	      i2c_command_en <= 1;	      
-	      i2c_rw <= 0;
-	      i2c_wdata <= 8'b11011111;	      
-	     end	   
-
-	   8'd8: begin
-	      // Complete write transaction
-	      i2c_command_en <= 0;
-	   end
-*/	   
 	 endcase // case (sensor_state)
 
       end // if i2c_busy

@@ -96,9 +96,9 @@ module top (
       // Clear initial reset of I2C master
       i2c_reset_n <= 1;
       
-      // Retrigger I2C every ~0.5 sec
+      // Retrigger I2C every ~0.125 sec
       counter <= counter + 1;
-      if (counter[23:0] == 24'd0) busy_count <= 99;
+      if (counter[21:0] == 22'd0) busy_count <= 99;
       
       // Now each time i2c_busy goes high we schedule
       // the next read or write action to the I2C state machine
@@ -108,13 +108,12 @@ module top (
       end
       
       if ( ((i2c_busy == 1) && (i2c_busy_last == 0))
-	   || ( busy_count == 99 && i2c_busy == 0 ) )
+	   || ( busy_count == 99 ) )
 	  begin
 
 	 // Advance to next state in the FSM
-	 if ( busy_count != 8'd10 ) begin
+	 if ( busy_count != 8'd20 ) begin
 	    busy_count <= busy_count + 1;
-	    rgb_led0_b = ~1;	 
 	 end
 	 	 
 	 // Schedule I2C byte transfers
@@ -126,42 +125,38 @@ module top (
 	 
 	 case (busy_count)
 	   8'd99: begin
-	      // Send dummy command to get things running
-	      i2c_command_en <= 1;
-	      i2c_rw <= 1;
-	      i2c_addr <= ADDRESS;
-	      busy_count <= 0;	      
-	   end
-	   8'd0: begin
-	      // Send address and start write transaction to select register 0
+	      // Send address and start read transaction by first writing the selected register number 
 	      i2c_command_en <= 1;
 	      i2c_rw <= 0;
 	      i2c_addr <= ADDRESS;
-	      i2c_wdata <= 8'd0;
-	      rgb_led0_g = ~1;	 
-	      rgb_led0_b = ~0;	 
+	      i2c_wdata <= 8'h06;  // Starting register number
+	      busy_count <= 0;	      
 	   end
-	   8'd1: begin
-	      // Switch to read
-	      i2c_command_en <= 1;
+	   8'd0: begin
+	      // Read first byte (register 6)
+	      i2c_command_en <= 1;	      
 	      i2c_rw <= 1;
-	      rgb_led0_r = ~1;	 
-	      rgb_led0_g = ~0;	 
 	     end	   
-	   8'd2: begin
-	      // Read 1st byte
+
+	   8'd1: begin
+	      // Send address and start write transaction to select register 6
 	      i2c_command_en <= 1;
-	      i2c_rw <= 1;
-	   end 
+	      i2c_rw <= 0;
+	      i2c_addr <= ADDRESS;
+	      i2c_wdata <= 8'd6;
+	     end
+ 	   8'd2: begin
+	      // Write to port 6
+	      i2c_command_en <= 1;	      
+	      i2c_rw <= 0;
+	      i2c_wdata <= counter[31:24];
+	     
+	     end	   
+
 	   8'd3: begin
-	      // Read 2nd byte
-	      i2c_command_en <= 1;
-	      i2c_rw <= 1;
+	      // Complete write transaction
+	      i2c_command_en <= 0;
 	   end
-	   8'd4: begin
-	      // Read last byte
-	      i2c_command_en <= 0;	 
-	   end	   
 	   
 	 endcase // case (sensor_state)
 

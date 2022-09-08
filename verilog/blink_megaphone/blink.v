@@ -16,7 +16,10 @@ module top (
 
    // Reset when btn0 is pressed for easy access to DFU mode
    assign rst_n = usr_btn;   
-
+ 
+   // Debug ESP32 UART interface with a simple loop-back
+   assign gpio_9 = gpio_6;   
+      
    // Counter for timed events
    reg [31:0] 	   counter = 0;
    

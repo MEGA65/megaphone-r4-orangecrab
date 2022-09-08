@@ -6,6 +6,8 @@ module top (
 	    output reg rgb_led0_b,
 	    output gpio_0,
 	    input  gpio_a0,
+	    output gpio_9,
+	    input gpio_6,
 	    inout  scl,
 	    inout  sda,
 	    input  usr_btn,
@@ -14,7 +16,7 @@ module top (
 
    // Reset when btn0 is pressed for easy access to DFU mode
    assign rst_n = usr_btn;   
-      
+
    // Counter for timed events
    reg [31:0] 	   counter = 0;
    
@@ -22,7 +24,7 @@ module top (
    parameter signed [31:0] INPUT_CLK_RATE = 48000000;
    parameter signed [31:0] TARGET_SCL_RATE = 100000;
    // I2C device address (in 7-bit format)
-   parameter [6:0] ADDRESS = 7'h25;
+   parameter [6:0] ADDRESS = 7'h24;
    // I2C interface signals
    reg [6:0] 	   i2c_addr;   
    reg 		   i2c_command_en = 0;
@@ -65,11 +67,6 @@ module top (
    reg [7:0] 	   busy_count;
    
    
-   //
-   // Test: Toggle 5V line
-   //
-   assign gpio_0 = counter[24];
-
    //
    // Debug output on RGB LED
    //    
@@ -161,9 +158,25 @@ module top (
 	      case (reg_pair)
 		2'b01: begin	       
 		   i2c_wdata[7:6] <= 2'b00;	      
-		   i2c_wdata[5:0] <= counter[29:24];
-		end
-		2'b10: i2c_wdata <= 8'h00; // port 0 inversions
+//		   i2c_wdata[5:0] <= counter[29:24];
+		   case (counter[26:24])
+		     3'b000: begin
+			i2c_wdata[5:0] <= 6'b000000;
+			gpio_0 <= 1'b0;
+		     end
+		     3'b001: i2c_wdata[5:0] <= 6'b000000;
+		     3'b010: i2c_wdata[5:0] <= 6'b000000;
+		     3'b011: i2c_wdata[5:0] <= 6'b000000;
+		     3'b100: i2c_wdata[5:0] <= 6'b000000;
+		     3'b101: i2c_wdata[5:0] <= 6'b000000;
+		     3'b110: i2c_wdata[5:0] <= 6'b000000;
+		     3'b111: begin 
+			i2c_wdata[5:0] <= 6'b000000;
+			gpio_0 <= 1'b1;
+		     end
+		   endcase
+	        end
+	        2'b10: i2c_wdata <= 8'h00; // port 0 inversions
 		2'b11: i2c_wdata <= 8'b11000000; // port 0 DDR
 	      endcase
 	     end	   
@@ -174,8 +187,11 @@ module top (
 	      case (reg_pair)
 		2'b01: begin
 		   i2c_wdata[7:6] <= 2'b00;	      
-		   i2c_wdata[4:0] <= 5'b00000;	      
-		   i2c_wdata[5] <= counter[25];
+		   i2c_wdata[4:0] <= 5'b00000;
+		   case (counter[26:24])
+		     3'b110: i2c_wdata[5] <= 1'b0;
+		     default: i2c_wdata[5] <= 1'b0;
+		   endcase
 		end
 		2'b10: i2c_wdata <= 8'h00; // port 1 inversions
 		2'b11: i2c_wdata <= 8'b11011111; // port 1 DDR

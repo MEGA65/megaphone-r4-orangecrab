@@ -137,6 +137,15 @@ module top (
    reg 		   otp_cs1;
    reg 		   otp_wp_n;
    reg 		   otp_si;   
+
+   reg [7:0]	   io_expander0_port0;
+   reg [7:0]	   io_expander0_port1;
+   reg [7:0]	   io_expander1_port0;
+   reg [7:0]	   io_expander1_port1;
+   reg [7:0]	   io_expander2_port0;
+   reg [7:0]	   io_expander2_port1;
+
+   reg [3:0] 	   loop_count;
    
    
    //
@@ -147,6 +156,9 @@ module top (
 //   assign rgb_led0_b = counter[24];   
 
    initial begin
+
+      loop_count <= 4'd0;
+      
       rgb_led0_r <= ~0;
       rgb_led0_g <= ~0;
       rgb_led0_b <= ~0;
@@ -214,6 +226,9 @@ module top (
 	 uart_xilinx0_dispatched <= 1'b1;
 	 uart_xilinx0_txtrigger <= 1'b1;
 
+	 if (counter[21:0] == 22'd0) begin
+	    uart_xilinx0_txstate <= 8'd0;	 
+	 end	 
 	 
 	 if (uart_xilinx0_txstate < 255) uart_xilinx0_txstate <= uart_xilinx0_txstate + 1;
 
@@ -236,11 +251,65 @@ module top (
 	   8'd11: uart_xilinx0_txdata <= 8'h54;
 	   8'd12: uart_xilinx0_txdata <= 8'h4c;
 	   8'd13: uart_xilinx0_txdata <= 8'h30;
-	   8'd14: uart_xilinx0_txdata <= 8'h0d;
+	   8'd14: uart_xilinx0_txdata <= 8'h20;
 	   8'd15: begin
-	      uart_xilinx0_txdata <= 8'h0a;
-	      // End of message
+	      if (io_expander0_port0[7:4] < 4'd10) uart_xilinx0_txdata <= 8'h30 + io_expander0_port0[7:4];
+	      else uart_xilinx0_txdata <= 8'h57 + io_expander0_port0[7:4];
 	   end
+	   8'd16: begin
+	      if (io_expander0_port0[3:0] < 4'd10) uart_xilinx0_txdata <= 8'h30 + io_expander0_port0[3:0];
+	      else uart_xilinx0_txdata <= 8'h57 + io_expander0_port0[3:0];
+	   end
+	   8'd17: begin
+	      if (io_expander0_port1[7:4] < 4'd10) uart_xilinx0_txdata <= 8'h30 + io_expander0_port1[7:4];
+	      else uart_xilinx0_txdata <= 8'h57 + io_expander0_port1[7:4];
+	   end
+	   8'd18: begin
+	      if (io_expander0_port1[3:0] < 4'd10) uart_xilinx0_txdata <= 8'h30 + io_expander0_port1[3:0];
+	      else uart_xilinx0_txdata <= 8'h57 + io_expander0_port1[3:0];
+	   end
+
+	   8'd19: begin
+	      if (io_expander1_port0[7:4] < 4'd10) uart_xilinx0_txdata <= 8'h30 + io_expander1_port0[7:4];
+	      else uart_xilinx0_txdata <= 8'h57 + io_expander1_port0[7:4];
+	   end
+	   8'd20: begin
+	      if (io_expander1_port0[3:0] < 4'd10) uart_xilinx0_txdata <= 8'h30 + io_expander1_port0[3:0];
+	      else uart_xilinx0_txdata <= 8'h57 + io_expander1_port0[3:0];
+	   end
+	   8'd21: begin
+	      if (io_expander1_port1[7:4] < 4'd10) uart_xilinx0_txdata <= 8'h30 + io_expander1_port1[7:4];
+	      else uart_xilinx0_txdata <= 8'h57 + io_expander1_port1[7:4];
+	   end
+	   8'd22: begin
+	      if (io_expander1_port1[3:0] < 4'd10) uart_xilinx0_txdata <= 8'h30 + io_expander1_port1[3:0];
+	      else uart_xilinx0_txdata <= 8'h57 + io_expander1_port1[3:0];
+	   end
+
+	   8'd23: begin
+	      if (io_expander2_port0[7:4] < 4'd10) uart_xilinx0_txdata <= 8'h30 + io_expander2_port0[7:4];
+	      else uart_xilinx0_txdata <= 8'h57 + io_expander2_port0[7:4];
+	   end
+	   8'd24: begin
+	      if (io_expander2_port0[3:0] < 4'd10) uart_xilinx0_txdata <= 8'h30 + io_expander2_port0[3:0];
+	      else uart_xilinx0_txdata <= 8'h57 + io_expander2_port0[3:0];
+	   end
+	   8'd25: begin
+	      if (io_expander2_port1[7:4] < 4'd10) uart_xilinx0_txdata <= 8'h30 + io_expander2_port1[7:4];
+	      else uart_xilinx0_txdata <= 8'h57 + io_expander2_port1[7:4];
+	   end
+	   8'd26: begin
+	      if (io_expander2_port1[3:0] < 4'd10) uart_xilinx0_txdata <= 8'h30 + io_expander2_port1[3:0];
+	      else uart_xilinx0_txdata <= 8'h57 + io_expander2_port1[3:0];
+	   end
+	   8'd27: begin
+		  if (loop_count[3:0] < 4'd10) uart_xilinx0_txdata <= 8'h30 + loop_count[3:0];
+		  else uart_xilinx0_txdata <= 8'h57 + loop_count[3:0];
+		  loop_count <= loop_count + 1;
+	   end
+	   	   
+	   8'd28: uart_xilinx0_txdata <= 8'h0d;
+	   8'd29: uart_xilinx0_txdata <= 8'h0a;
 	   default: begin
 	      // Do nothing while idle
 	      uart_xilinx0_txtrigger <= 1'b0;	   
@@ -337,9 +406,19 @@ module top (
 	      // Read first byte (register 1)
 	      i2c_command_en <= 1;	      
 	      i2c_rw <= 1;
+	      case (io_expander)
+		2'b00: io_expander0_port0 <= i2c_rdata;
+		2'b01: io_expander1_port0 <= i2c_rdata;
+		2'b10: io_expander2_port0 <= i2c_rdata;
+	      endcase; // case (io_expander)	      
 	     end	   
 
 	   8'd2: begin
+	      case (io_expander)
+		2'b00: io_expander0_port1 <= i2c_rdata;
+		2'b01: io_expander1_port1 <= i2c_rdata;
+		2'b10: io_expander2_port1 <= i2c_rdata;
+	      endcase; // case (io_expander)	      
 	      // Send address and start write transaction to select register 2
 	      // except during start-up, when we initialise the other registers
 	      i2c_command_en <= 1;

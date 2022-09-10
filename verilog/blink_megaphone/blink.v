@@ -101,6 +101,43 @@ module top (
    // State machine for performing I2C operations
    reg [7:0] 	   busy_count;
    
+
+   /*
+    Signals to keep track of power rails and other outputs
+    */
+   reg 		   power_rail_modem1;
+   reg 		   power_rail_modem2;
+   reg 		   power_rail_rfd900;
+   reg 		   power_rail_esp32;
+   reg 		   power_rail_screen;
+   reg 		   power_rail_speaker_amplifier;
+   reg 		   lcd_standby;
+   reg 		   modem1_wake_n;
+   reg 		   power_rail_mic;
+   reg 		   cm4_en;
+   reg 		   cm4_wifi_en;
+   reg 		   cm4_bt_en;
+   reg 		   lcd_display_en;
+   reg 		   lcd_backlight_en;
+   reg 		   esp32_reset_n;
+   reg 		   hdmi_hotplug_detect_enable;
+   reg 		   hdmi_en;
+   reg 		   hdmi_rx_enable;
+   reg 		   modem1_reset_n;
+   reg 		   modem2_wake_n;
+   reg 		   modem2_reset_n;
+   reg 		   modem2_wireless_disable;
+   reg 		   modem1_wireless_disable;
+   reg 		   power_rail_headphone_amplifier;
+   reg 		   hdmi_hotplug_detect;
+   reg 		   hdmi_cec_a;
+   reg 		   otp_hold_n;
+   reg 		   otp_reset_n;
+   reg 		   otp_cs2;
+   reg 		   otp_cs1;
+   reg 		   otp_wp_n;
+   reg 		   otp_si;   
+   
    
    //
    // Debug output on RGB LED
@@ -125,6 +162,42 @@ module top (
       uart_xilinx0_dispatched <= 1'b0;
       uart_xilinx0_txstate <= 8'd0;
       uart_xilinx0_rxack <= 1'b0;
+
+      // Default output settings
+      power_rail_modem1 <= 1'b0;
+      power_rail_modem2 <= 1'b0;
+      power_rail_rfd900 <= 1'b0;
+      power_rail_esp32 <= 1'b0;
+      power_rail_screen <= 1'b0;
+      power_rail_speaker_amplifier <= 1'b0;
+      lcd_standby <= 1'b0;
+      modem1_wake_n <= 1'b0;
+      power_rail_mic <= 1'b0;
+      cm4_en <= 1'b0;
+      cm4_wifi_en <= 1'b0;
+      cm4_bt_en <= 1'b0;
+      lcd_display_en <= 1'b0;
+      lcd_backlight_en <= 1'b0;
+      esp32_reset_n <= 1'b0;
+      hdmi_hotplug_detect_enable <= 1'b0;
+      hdmi_en <= 1'b0;
+      hdmi_rx_enable <= 1'b0;
+      modem1_reset_n <= 1'b0;
+      modem2_wake_n <= 1'b0;
+      modem2_reset_n <= 1'b0;
+      modem2_wireless_disable <= 1'b0;
+      modem1_wireless_disable <= 1'b0;
+      power_rail_headphone_amplifier <= 1'b0;
+      hdmi_hotplug_detect <= 1'b0;
+      hdmi_cec_a <= 1'b0;
+      otp_hold_n <= 1'b0;
+      otp_reset_n <= 1'b0;
+      otp_cs2 <= 1'b0;
+      otp_cs1 <= 1'b0;
+      otp_wp_n <= 1'b0;
+      otp_si <= 1'b0;
+      
+      
       
    end
    
@@ -296,7 +369,7 @@ module top (
 			i2c_wdata[6] <= lcd_standby;
 			i2c_wdata[7] <= modem1_wake_n; // DTR line, pull low to wake module from sleep		   
 			
-			gpio_0 <= power_rail_states[6];
+			gpio_0 <= power_rail_mic;			
 		     end
 	             2'b10: i2c_wdata <= 8'h00; // port 0 inversions
 		     2'b11: i2c_wdata <= 8'b11000000; // port 0 DDR
@@ -309,7 +382,7 @@ module top (
 			i2c_wdata[1] <= cm4_wifi_en;			
 			i2c_wdata[2] <= cm4_bt_en;			
 			i2c_wdata[3] <= lcd_display_en;			
-			i2c_wdata[4] <= backlight_en;			
+			i2c_wdata[4] <= lcd_backlight_en;			
 			i2c_wdata[5] <= esp32_reset_n;			
 			i2c_wdata[6] <= hdmi_hotplug_detect_enable;		
 			i2c_wdata[7] <= hdmi_en;			
@@ -334,7 +407,8 @@ module top (
 		     2'b11: i2c_wdata <= 8'b10111111; // port 0 DDR
 		   endcase; // case (reg_pair)		   
 		end // case: 2'b10
-	      endcase; // case (io_expander)	      
+	      endcase; // case (io_expander)
+	   end // case: 8'd3	   
  	   8'd4: begin
 	      // Write to register 3 : Power rail enable in bit 5 for headphones amplifier
 	      i2c_command_en <= 1;	      
@@ -365,7 +439,7 @@ module top (
 			i2c_wdata[3] <= otp_cs2;		   
 			i2c_wdata[4] <= otp_cs1;		  
 			i2c_wdata[5] <= otp_wp_n;		   
-			i2c_wdata[6] <= otp_so;		   
+			i2c_wdata[6] <= 1'b1;      // otp_so;		   
 			i2c_wdata[7] <= otp_si;		   
 		     end
 		     2'b10: i2c_wdata <= 8'h00; // port 1 inversions
@@ -388,7 +462,8 @@ module top (
 		     2'b11: i2c_wdata <= 8'b11111111; // port 0 DDR
 		   endcase		   
 		end // case: 2'b10
-	      endcase // case (io_expander)	      
+	      endcase; // case (io_expander)
+	   end // case: 8'd4	   
 	   8'd5: begin
 	      // Complete write transaction
 	      i2c_command_en <= 0;
@@ -406,7 +481,6 @@ module top (
 	      endcase; // case (io_expander)	      
 	   end
 	 endcase // case (sensor_state)
-
       end // if i2c_busy
    end // always @ (posedge clk48)
    

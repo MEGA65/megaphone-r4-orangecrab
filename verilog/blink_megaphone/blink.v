@@ -38,7 +38,8 @@ module top (
 
    reg [1:0] 	   i2c_busy_prev_state = 0;
    // Remember which register pair we are writing to
-   reg [1:0] 	   reg_pair = 2'b10; 	      
+   reg [1:0] 	   reg_pair = 2'b10;
+   reg [1:0] 	   io_expander;   
 
    reg [7:0] 	   uart_xilinx0_txdata;
    reg 		   uart_xilinx0_txtrigger;
@@ -49,6 +50,8 @@ module top (
    wire [7:0] 	   uart_xilinx0_rxdata;
    wire 	   uart_xilinx0_rxready;
    reg 		   uart_xilinx0_rxack;
+
+   reg [7:0] 	   power_rail_states;   
    
    // UART RX from Xilinx FPGA
    uart_rx xilinx_uart0_rx (
@@ -113,6 +116,9 @@ module top (
       busy_count <= 99;
       // Start by setting up inversion and DDR bits for ports
       reg_pair <= 2'b10;
+      io_expander <= 2'b00;      
+
+      power_rail_states <= 8'd0;      
       
       // Put UARTs idle on reset
       uart_xilinx0_txtrigger <= 1'b0;      
@@ -174,6 +180,15 @@ module top (
 	 uart_xilinx0_dispatched <= 1'b0;	 
 	 uart_xilinx0_txtrigger <= 1'b0;	 
       end
+
+      uart_xilinx0_rxack <= 1'b0;      
+      if ( uart_xilinx0_rxready == 1 ) begin
+	 uart_xilinx0_rxack <= 1'b1;
+	 
+	 // XXX DEBUG : re-display UART message on any serial RX
+	 uart_xilinx0_txstate <= 8'd0;	 
+      end
+      
       
       // Detect rising edge of busy signals
       i2c_busy_last <= i2c_busy;
@@ -183,12 +198,28 @@ module top (
       // Clear initial reset of I2C master
       i2c_reset_n <= 1;
       
-      // Retrigger I2C every ~0.125 sec
+      /*
+       We have 3 IO expanders to scan. One of them has the joystick and other buttons, 
+       so we want to minimise the latency on those.  1ms would be nice, but 10ms should 
+       be fine, too.  
+       
+       The two IO expanders that need to have signals set require 6 I2C transfers each x 10 bits = 60 bits.
+       The third IO expander that needs to be read and written required 11 transfers = 110 bits.
+       Thus the total time required is < 200 bits.
+       At 100KHz clock rate, we should be able to scan every 2ms or so.
+       If we can increase the I2C clock to 400KHz, then 0.5ms should be possible.
+       But we will stick to 100KHz for now, and schedule one IO expander every 2ms, so that even the 110 bit 
+       one won't overflow the time. This will give us an actual update interval of 6ms, which should be fine.
+       
+       Our clock is 48MHz, so to get 2ms (500 Hz), we need 48x10^6 / 500 Hz = 96,000 cycles.
+       That's annoying, as a power of 2 would be easier. Fortunately there is enough slop in our calculations
+       to use 65,536 cycles, which gives us one IO expander probe every 1.3ms, i.e., a complete update cycle
+       every 4.096ms.  That seems pretty reasonable to me.
+       
+       */
       counter <= counter + 1;
-      if (counter[21:0] == 22'd0) begin
+      if (counter[16:0] == 16'd0) begin
 	 busy_count <= 99;
-	 // XXX DEBUG and re-display UART message
-	 uart_xilinx0_txstate <= 8'd0;
       end
       
       // Now each time i2c_busy goes high we schedule
@@ -219,83 +250,160 @@ module top (
 	      // Send address and start read transaction by first writing the selected register number 
 	      i2c_command_en <= 1;
 	      i2c_rw <= 0;
-	      i2c_addr <= ADDRESS;
+	      i2c_addr[6:2] <= ADDRESS;
+	      i2c_addr[1:0] <= io_expander;	      
 	      i2c_wdata <= 8'd0; // Port 0 read address
 	      busy_count <= 0;	      
 	   end
 	   8'd0: begin
-	      // Read first byte (register 6)
+	      // Read first byte (register 0)
+	      i2c_command_en <= 1;	      
+	      i2c_rw <= 1;
+	     end	   
+	   8'd1: begin
+	      // Read first byte (register 1)
 	      i2c_command_en <= 1;	      
 	      i2c_rw <= 1;
 	     end	   
 
-	   8'd1: begin
+	   8'd2: begin
 	      // Send address and start write transaction to select register 2
 	      // except during start-up, when we initialise the other registers
 	      i2c_command_en <= 1;
 	      i2c_rw <= 0;
-	      i2c_addr <= ADDRESS;
+	      i2c_addr[6:2] <= ADDRESS;
+	      i2c_addr[1:0] <= io_expander;	      
 	      // Select the register pair to write to	      
 	      i2c_wdata[7:3] <= 5'd0;     
 	      i2c_wdata[2:1] <= reg_pair;
 	      i2c_wdata[0] <= 1'b0;     
 	     end
- 	   8'd2: begin
+ 	   8'd3: begin
 	      // Write to register 2 : Power rail enables
 	      // (or reg 4 (inversions of port 0) or reg 6 (ddr of port 0)
 	      i2c_command_en <= 1;	      
 	      i2c_rw <= 0;
-	      case (reg_pair)
-		2'b01: begin	       
-		   i2c_wdata[7:6] <= 2'b00;	      
-//		   i2c_wdata[5:0] <= counter[29:24];
-		   case (counter[26:24])
-		     3'b000: begin
-			i2c_wdata[5:0] <= 6'b000000;
-			gpio_0 <= 1'b0;
+	      case (io_expander)
+		2'b00: begin
+		   case (reg_pair)
+		     2'b01: begin	       
+			i2c_wdata[0] <= power_rail_modem1;
+			i2c_wdata[1] <= power_rail_modem2;
+			i2c_wdata[2] <= power_rail_rfd900;
+			i2c_wdata[3] <= power_rail_esp32;
+			i2c_wdata[4] <= power_rail_screen;
+			i2c_wdata[5] <= power_rail_speaker_amplifier;
+			i2c_wdata[6] <= lcd_standby;
+			i2c_wdata[7] <= modem1_wake_n; // DTR line, pull low to wake module from sleep		   
+			
+			gpio_0 <= power_rail_states[6];
 		     end
-		     3'b001: i2c_wdata[5:0] <= 6'b000000;
-		     3'b010: i2c_wdata[5:0] <= 6'b000000;
-		     3'b011: i2c_wdata[5:0] <= 6'b000000;
-		     3'b100: i2c_wdata[5:0] <= 6'b000000;
-		     3'b101: i2c_wdata[5:0] <= 6'b000000;
-		     3'b110: i2c_wdata[5:0] <= 6'b000000;
-		     3'b111: begin 
-			i2c_wdata[5:0] <= 6'b000000;
-			gpio_0 <= 1'b1;
+	             2'b10: i2c_wdata <= 8'h00; // port 0 inversions
+		     2'b11: i2c_wdata <= 8'b11000000; // port 0 DDR
+		   endcase; // case (reg_pair)		  
+		end // case: 2'b00
+		2'b01: begin
+		   case (reg_pair)
+		     2'b01: begin	       
+			i2c_wdata[0] <= cm4_en;			
+			i2c_wdata[1] <= cm4_wifi_en;			
+			i2c_wdata[2] <= cm4_bt_en;			
+			i2c_wdata[3] <= lcd_display_en;			
+			i2c_wdata[4] <= backlight_en;			
+			i2c_wdata[5] <= esp32_reset_n;			
+			i2c_wdata[6] <= hdmi_hotplug_detect_enable;		
+			i2c_wdata[7] <= hdmi_en;			
 		     end
-		   endcase
-	        end
-	        2'b10: i2c_wdata <= 8'h00; // port 0 inversions
-		2'b11: i2c_wdata <= 8'b11000000; // port 0 DDR
-	      endcase
-	     end	   
- 	   8'd3: begin
+	             2'b10: i2c_wdata <= 8'h00; // port 0 inversions
+		     2'b11: i2c_wdata <= 8'b11000000; // port 0 DDR
+		   endcase; // case (reg_pair)		   
+		end // case: 2'b01		
+		2'b10: begin
+		   case (reg_pair)
+		     2'b01: begin	       
+			i2c_wdata[0] <= 1'b1;  // D-PAD inputs
+			i2c_wdata[1] <= 1'b1;  	
+			i2c_wdata[2] <= 1'b1;			
+			i2c_wdata[3] <= 1'b1;			
+			i2c_wdata[4] <= 1'b1;  // S2 buttons	
+			i2c_wdata[5] <= 1'b1;
+			i2c_wdata[6] <= hdmi_rx_enable;			
+			i2c_wdata[7] <= 1'b1;			
+		     end
+	             2'b10: i2c_wdata <= 8'h00; // port 0 inversions
+		     2'b11: i2c_wdata <= 8'b10111111; // port 0 DDR
+		   endcase; // case (reg_pair)		   
+		end // case: 2'b10
+	      endcase; // case (io_expander)	      
+ 	   8'd4: begin
 	      // Write to register 3 : Power rail enable in bit 5 for headphones amplifier
 	      i2c_command_en <= 1;	      
 	      i2c_rw <= 0;
-	      case (reg_pair)
-		2'b01: begin
-		   i2c_wdata[7:6] <= 2'b00;	      
-		   i2c_wdata[4:0] <= 5'b00000;
-		   case (counter[26:24])
-		     3'b110: i2c_wdata[5] <= 1'b0;
-		     default: i2c_wdata[5] <= 1'b0;
+	      case (io_expander)
+		2'b00: begin
+		   case (reg_pair)
+		     2'b01: begin
+			i2c_wdata[0] <= modem1_reset_n;		   
+			i2c_wdata[1] <= modem2_wake_n;		   
+			i2c_wdata[2] <= modem2_reset_n;		   
+			i2c_wdata[3] <= modem2_wireless_disable;		   
+			i2c_wdata[4] <= modem1_wireless_disable;		   
+			i2c_wdata[5] <= power_rail_headphone_amplifier;		   
+			i2c_wdata[6] <= hdmi_hotplug_detect;		   
+			i2c_wdata[7] <= 1'b0; // NOT CONNECTED		   
+		     end
+		     2'b10: i2c_wdata <= 8'h00; // port 1 inversions
+		     2'b11: i2c_wdata <= 8'b11011111; // port 1 DDR
 		   endcase
-		end
-		2'b10: i2c_wdata <= 8'h00; // port 1 inversions
-		2'b11: i2c_wdata <= 8'b11011111; // port 1 DDR
-	      endcase
-	     end	   
-	   8'd4: begin
+		end	  
+		2'b01: begin
+		   case (reg_pair)
+		     2'b01: begin
+			i2c_wdata[0] <= hdmi_cec_a;		   
+			i2c_wdata[1] <= otp_hold_n;		   
+			i2c_wdata[2] <= otp_reset_n;		   
+			i2c_wdata[3] <= otp_cs2;		   
+			i2c_wdata[4] <= otp_cs1;		  
+			i2c_wdata[5] <= otp_wp_n;		   
+			i2c_wdata[6] <= otp_so;		   
+			i2c_wdata[7] <= otp_si;		   
+		     end
+		     2'b10: i2c_wdata <= 8'h00; // port 1 inversions
+		     2'b11: i2c_wdata <= 8'b01000000; // port 1 DDR
+		   endcase
+		end // case: 2'b01
+		2'b10: begin
+		   case (reg_pair)
+		     2'b01: begin	       
+			i2c_wdata[0] <= 1'b1;  // S3 buttons
+			i2c_wdata[1] <= 1'b1;  	
+			i2c_wdata[2] <= 1'b1;  // Interrupt sense	
+			i2c_wdata[3] <= 1'b1;  // J3 joystick inputs			
+			i2c_wdata[4] <= 1'b1; 
+			i2c_wdata[5] <= 1'b1;
+			i2c_wdata[6] <= 1'b1;			
+			i2c_wdata[7] <= 1'b1;			
+		     end
+	             2'b10: i2c_wdata <= 8'h00; // port 0 inversions
+		     2'b11: i2c_wdata <= 8'b11111111; // port 0 DDR
+		   endcase		   
+		end // case: 2'b10
+	      endcase // case (io_expander)	      
+	   8'd5: begin
 	      // Complete write transaction
 	      i2c_command_en <= 0;
 	      // Select the next register pair to write
-	      case (reg_pair)
-		2'b10: reg_pair <= 2'b11; // setup DDRs for ports after clearing inversions
-		2'b11: reg_pair <= 2'b01; // then write port 0/1 outputs forever after
-	      endcase // case reg_pair
-	      
+	      case (io_expander)
+		2'b00: io_expander <= 2'b01;
+		2'b01: io_expander <= 2'b10;		
+		2'b10: begin
+		   io_expander <= 2'b00;		   
+		   case (reg_pair)
+		     2'b10: reg_pair <= 2'b11; // setup DDRs for ports after clearing inversions
+		     2'b11: reg_pair <= 2'b01; // then write port 0/1 outputs forever after
+		   endcase // case reg_pair
+		end
+	      endcase; // case (io_expander)	      
 	   end
 	 endcase // case (sensor_state)
 

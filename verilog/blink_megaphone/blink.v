@@ -42,6 +42,23 @@ module top (
    reg [1:0] 	   i2c_busy_prev_state = 0;
    // Remember which register pair we are writing to
    reg [1:0] 	   reg_pair = 2'b10; 	      
+
+   reg [7:0] 	   uart_xilinx0_txdata;
+   reg 		   uart_xilinx0_txtrigger;
+   reg 		   uart_xilinx0_dispatched;
+   reg 		   uart_xilinx0_ready;
+   
+   // UART TX to Xilinx FPGA
+   uart_tx (
+	    .CLK(clk48),
+	    .BIT_TMR_MAX(24'd11), // 48MHz/4Mbps = 12. 12 - 1 = 11
+	    .DATA(uart_xilinx0_txdata),
+	    .SEND(uart_xilinx0_txtrigger),
+	    .READY(uart_xilinx0_txready),
+	    // XXX for now feed to ESP32 board UART pins during bring-up testing
+	    .UART_TX(gpio_9)	    
+	    );
+   
    
    // I2C bus   
    i2c_master #(
@@ -78,17 +95,61 @@ module top (
 //   assign rgb_led0_b = counter[24];   
 
    initial begin
-     rgb_led0_r <= ~0;
-     rgb_led0_g <= ~0;
-     rgb_led0_b <= ~0;
-     busy_count <= 99;
+      rgb_led0_r <= ~0;
+      rgb_led0_g <= ~0;
+      rgb_led0_b <= ~0;
+      busy_count <= 99;
       // Start by setting up inversion and DDR bits for ports
       reg_pair <= 2'b10;
-      
+      // Put TX UARTs idle on reset
+      uart_xilinx0_txtrigger <= 1'b0;      
+      uart_xilinx0_dispatched <= 1'b0;      
    end
    
    always @(posedge clk48) begin
 
+      if uart_xilinx0_ready = 1'b1 && uart_xilinx0_dispatched = 1'b0 begin
+	 // Send next char via UART
+	 uart_xilinx0_dispatched <= 1'b1;
+	 uart_xilinx0_txtrigger <= 1'b1;
+
+	 
+	 if (uart_xilinx0_state < 255) uart_xilinx0_state <= uart_xilinx0_state + 1;
+	 
+	 case (uart_xilinx0_state)
+	   // Display ready message
+	   // MEGAphone CTL0<CRLF>
+	   8'd0: uart_xilinx0_txdata <= 8'h4D;
+	   8'd1: uart_xilinx0_txdata <= 8'h45;
+	   8'd2: uart_xilinx0_txdata <= 8'h47;
+	   8'd3: uart_xilinx0_txdata <= 8'h41;
+	   8'd4: uart_xilinx0_txdata <= 8'h70;
+	   8'd5: uart_xilinx0_txdata <= 8'h68;
+	   8'd6: uart_xilinx0_txdata <= 8'h6f;
+	   8'd7: uart_xilinx0_txdata <= 8'h6e;
+	   8'd8: uart_xilinx0_txdata <= 8'h65;
+	   8'd9: uart_xilinx0_txdata <= 8'h20;
+	   8'd10: uart_xilinx0_txdata <= 8'h43;
+	   8'd11: uart_xilinx0_txdata <= 8'h54;
+	   8'd12: uart_xilinx0_txdata <= 8'h4c;
+	   8'd13: uart_xilinx0_txdata <= 8'h30;
+	   8'd14: uart_xilinx0_txdata <= 8'h0d;
+	   8'd15: begin
+	      uart_xilinx0_txdata <= 8'h0a;
+	      // End of message
+	      uart_xilinx0_state <= 255;	      
+	   end
+	   8'd255:
+	     // Do nothing while idle
+	     uart_xilinx0_txtrigger <= 1'b0;	   
+	 endcase
+	   
+      end
+      if uart_xilinx0_ready = 0'b1 begin
+	 uart_xilinx0_dispatched <= 1'b0;	 
+	 uart_xilinx0_txtrigger <= 1'b0;	 
+      end
+      
       // Detect rising edge of busy signals
       i2c_busy_last <= i2c_busy;
 

@@ -49,7 +49,7 @@ module top (
    // UART TX to Xilinx FPGA
    uart_tx xilinx_uart0_tx (
 	    .CLK(clk48),
-	    .BIT_TMR_MAX(24'd11), // 48MHz/4Mbps = 12. 12 - 1 = 11
+	    .BIT_TMR_MAX(24'd23), // 48MHz/2Mbps = 24. 24 - 1 = 23
 	    .DATA(uart_xilinx0_txdata),
 	    .SEND(uart_xilinx0_txtrigger),
 	    .READY(uart_xilinx0_txready),

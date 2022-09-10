@@ -45,6 +45,20 @@ module top (
    reg 		   uart_xilinx0_dispatched;
    wire		   uart_xilinx0_txready;
    reg [7:0] 	   uart_xilinx0_txstate; 		   
+
+   wire [7:0] 	   uart_xilinx0_rxdata;
+   wire 	   uart_xilinx0_rxready;
+   reg 		   uart_xilinx0_rxack;
+   
+   // UART RX from Xilinx FPGA
+   uart_rx xilinx_uart0_rx (
+			    .clk(clk48),
+			    .bit_rate_divisor(24'd23), // 2Mbs
+			    .UART_RX(gpio_6),
+			    .data(uart_xilinx0_rxdata),
+			    .data_ready(uart_xilinx0_rxready),
+			    .data_acknowledge(uart_xilinx0_rxack)
+			    );   
    
    // UART TX to Xilinx FPGA
    uart_tx xilinx_uart0_tx (
@@ -100,10 +114,11 @@ module top (
       // Start by setting up inversion and DDR bits for ports
       reg_pair <= 2'b10;
       
-      // Put TX UARTs idle on reset
+      // Put UARTs idle on reset
       uart_xilinx0_txtrigger <= 1'b0;      
       uart_xilinx0_dispatched <= 1'b0;
       uart_xilinx0_txstate <= 8'd0;
+      uart_xilinx0_rxack <= 1'b0;
       
    end
    

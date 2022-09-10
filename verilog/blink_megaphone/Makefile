@@ -83,7 +83,7 @@ dfu: $(PROJ).dfu
 	yosys -s "$<"
 
 test:
-	iverilog -o blink test.vt blink.v i2c_master.v uart_tx.v  && ./blink 
+	iverilog -o blink test.vt blink.v i2c_master.v uart_tx.v uart_rx.v  && ./blink 
 
 
 # Run the simulation to create the .vcd file, then view it with gtkwave.

@@ -4,7 +4,7 @@ module top (
 	    output reg rgb_led0_r,
 	    output reg rgb_led0_g,
 	    output reg rgb_led0_b,
-	    output gpio_0,
+	    output reg gpio_0,
 	    input  gpio_a0,
 	    output gpio_9,
 	    input gpio_6,
@@ -17,9 +17,6 @@ module top (
    // Reset when btn0 is pressed for easy access to DFU mode
    assign rst_n = usr_btn;   
  
-   // Debug ESP32 UART interface with a simple loop-back
-   assign gpio_9 = gpio_6;   
-      
    // Counter for timed events
    reg [31:0] 	   counter = 0;
    
@@ -46,10 +43,11 @@ module top (
    reg [7:0] 	   uart_xilinx0_txdata;
    reg 		   uart_xilinx0_txtrigger;
    reg 		   uart_xilinx0_dispatched;
-   reg 		   uart_xilinx0_ready;
+   wire		   uart_xilinx0_txready;
+   reg [7:0] 	   uart_xilinx0_txstate; 		   
    
    // UART TX to Xilinx FPGA
-   uart_tx (
+   uart_tx xilinx_uart0_tx (
 	    .CLK(clk48),
 	    .BIT_TMR_MAX(24'd11), // 48MHz/4Mbps = 12. 12 - 1 = 11
 	    .DATA(uart_xilinx0_txdata),
@@ -59,7 +57,7 @@ module top (
 	    .UART_TX(gpio_9)	    
 	    );
    
-   
+
    // I2C bus   
    i2c_master #(
 		.input_clk(INPUT_CLK_RATE),
@@ -101,22 +99,33 @@ module top (
       busy_count <= 99;
       // Start by setting up inversion and DDR bits for ports
       reg_pair <= 2'b10;
+      
       // Put TX UARTs idle on reset
       uart_xilinx0_txtrigger <= 1'b0;      
-      uart_xilinx0_dispatched <= 1'b0;      
+      uart_xilinx0_dispatched <= 1'b0;
+      uart_xilinx0_txstate <= 8'd0;
+      
    end
    
    always @(posedge clk48) begin
 
-      if uart_xilinx0_ready = 1'b1 && uart_xilinx0_dispatched = 1'b0 begin
+      $display("txready=",uart_xilinx0_txready,", dispatched=", uart_xilinx0_dispatched);
+
+      rgb_led0_r = ~uart_xilinx0_txready;      
+      rgb_led0_g = ~uart_xilinx0_dispatched;      
+      rgb_led0_b = ~1'b0;      
+      
+      if ( uart_xilinx0_txready == 1'b1 && uart_xilinx0_dispatched == 1'b0 ) begin
 	 // Send next char via UART
 	 uart_xilinx0_dispatched <= 1'b1;
 	 uart_xilinx0_txtrigger <= 1'b1;
 
 	 
-	 if (uart_xilinx0_state < 255) uart_xilinx0_state <= uart_xilinx0_state + 1;
+	 if (uart_xilinx0_txstate < 255) uart_xilinx0_txstate <= uart_xilinx0_txstate + 1;
+
+	 $display("Sending char ",uart_xilinx0_txstate);
 	 
-	 case (uart_xilinx0_state)
+	 case (uart_xilinx0_txstate)
 	   // Display ready message
 	   // MEGAphone CTL0<CRLF>
 	   8'd0: uart_xilinx0_txdata <= 8'h4D;
@@ -137,15 +146,16 @@ module top (
 	   8'd15: begin
 	      uart_xilinx0_txdata <= 8'h0a;
 	      // End of message
-	      uart_xilinx0_state <= 255;	      
 	   end
-	   8'd255:
-	     // Do nothing while idle
-	     uart_xilinx0_txtrigger <= 1'b0;	   
+	   default: begin
+	      // Do nothing while idle
+	      uart_xilinx0_txtrigger <= 1'b0;	   
+	      uart_xilinx0_dispatched <= 1'b0;
+	   end
 	 endcase
 	   
       end
-      if uart_xilinx0_ready = 0'b1 begin
+      if ( uart_xilinx0_txready == 1'b0 ) begin
 	 uart_xilinx0_dispatched <= 1'b0;	 
 	 uart_xilinx0_txtrigger <= 1'b0;	 
       end
@@ -153,9 +163,6 @@ module top (
       // Detect rising edge of busy signals
       i2c_busy_last <= i2c_busy;
 
-      rgb_led0_r = ~busy_count[0];      
-      rgb_led0_g = ~busy_count[1];      
-      rgb_led0_b = ~busy_count[2];      
 //      rgb_led0_g = ~counter[24];      
       
       // Clear initial reset of I2C master
@@ -163,7 +170,11 @@ module top (
       
       // Retrigger I2C every ~0.125 sec
       counter <= counter + 1;
-      if (counter[21:0] == 22'd0) busy_count <= 99;
+      if (counter[21:0] == 22'd0) begin
+	 busy_count <= 99;
+	 // XXX DEBUG and re-display UART message
+	 uart_xilinx0_txstate <= 8'd0;
+      end
       
       // Now each time i2c_busy goes high we schedule
       // the next read or write action to the I2C state machine

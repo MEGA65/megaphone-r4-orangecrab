@@ -12,13 +12,17 @@ module testbed (
    reg 	sda_last = 1;
    reg 	scl_last = 1;   
    
-   reg [31:0]	cycles;   
+   reg [31:0]	cycles;
+
+   wire 	gpio_9;
+   reg 		last_gpio_9;
    
    top blink (
 	  .clk48(clk48),
 	  .rgb_led0_r(rgb_led0_r),
 	  .rgb_led0_g(rgb_led0_g),
 	  .rgb_led0_b(rgb_led0_b),
+	      .gpio_9(gpio_9),
 	  .scl(scl),
 	  .sda(sda)
 	  );
@@ -40,11 +44,16 @@ initial
 	  #20; // low for 20 * timescale = 20 ns
 
 	  if ((sda != sda_last) || (scl != scl_last)) begin
-	     $display("testbed: SDA=", sda, ", SCL=", scl);
+//	     $display("testbed: SDA=", sda, ", SCL=", scl);
 	     sda_last <= sda;
-	     scl_last <= scl;
-	     
+	     scl_last <= scl;	     
 	  end
+
+	  if (gpio_9 != last_gpio_9) begin
+	     $display("gpio_9 = ", gpio_9);
+	     last_gpio_9 <= gpio_9;
+	  end
+	  
 	  
        end
      $display("done");

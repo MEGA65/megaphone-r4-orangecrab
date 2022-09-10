@@ -34,7 +34,7 @@ all: $(PROJ).dfu
 
 dfu: $(PROJ).dfu
 	dfu-util -D $<
-	
+
 # We don't actually need to do anything to verilog files.
 # This explicitly empty recipe is merely referenced from
 # the %.ys recipe below. Since it depends on those files,
@@ -57,7 +57,7 @@ dfu: $(PROJ).dfu
 		$(file >>$@,synth_ecp5 -top $(TOP_MODULE)) \
 		$(file >>$@,write_json "$(basename $@).json") \
 	)
-	
+
 # Run the yosys script to synthasize the logic and netlist (in json format)
 # to provide for nextpnr-ecp5.
 %.json: %.ys
@@ -83,7 +83,7 @@ dfu: $(PROJ).dfu
 	yosys -s "$<"
 
 test:
-	iverilog -o blink test.vt blink.v i2c_master.v  && ./blink 
+	iverilog -o blink test.vt blink.v i2c_master.v uart_tx.v  && ./blink 
 
 
 # Run the simulation to create the .vcd file, then view it with gtkwave.

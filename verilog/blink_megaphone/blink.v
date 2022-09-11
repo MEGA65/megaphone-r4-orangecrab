@@ -215,11 +215,11 @@ module top (
    
    always @(posedge clk48) begin
 
-      $display("txready=",uart_xilinx0_txready,", dispatched=", uart_xilinx0_dispatched);
+//      $display("txready=",uart_xilinx0_txready,", dispatched=", uart_xilinx0_dispatched);
 
-      rgb_led0_r = ~uart_xilinx0_txready;      
-      rgb_led0_g = ~uart_xilinx0_dispatched;      
-      rgb_led0_b = ~1'b0;      
+//      rgb_led0_r = ~uart_xilinx0_txready;      
+//      rgb_led0_g = ~uart_xilinx0_dispatched;      
+//      rgb_led0_b = ~1'b0;      
       
       if ( uart_xilinx0_txready == 1'b1 && uart_xilinx0_dispatched == 1'b0 ) begin
 	 // Send next char via UART
@@ -328,7 +328,9 @@ module top (
 	 uart_xilinx0_rxack <= 1'b1;
 	 
 	 // XXX DEBUG : re-display UART message on any serial RX
-	 uart_xilinx0_txstate <= 8'd0;	 
+	 uart_xilinx0_txstate <= 8'd0;
+
+	 rgb_led0_r <= ~rgb_led0_r;
       end
       
       
@@ -392,7 +394,7 @@ module top (
 	      // Send address and start read transaction by first writing the selected register number 
 	      i2c_command_en <= 1;
 	      i2c_rw <= 0;
-	      i2c_addr[6:2] <= ADDRESS;
+	      i2c_addr[6:2] <= ADDRESS[6:2];
 	      i2c_addr[1:0] <= io_expander;	      
 	      i2c_wdata <= 8'd0; // Port 0 read address
 	      busy_count <= 0;	      
@@ -423,7 +425,7 @@ module top (
 	      // except during start-up, when we initialise the other registers
 	      i2c_command_en <= 1;
 	      i2c_rw <= 0;
-	      i2c_addr[6:2] <= ADDRESS;
+	      i2c_addr[6:2] <= ADDRESS[6:2];
 	      i2c_addr[1:0] <= io_expander;	      
 	      // Select the register pair to write to	      
 	      i2c_wdata[7:3] <= 5'd0;     

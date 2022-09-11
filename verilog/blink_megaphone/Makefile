@@ -85,6 +85,8 @@ dfu: $(PROJ).dfu
 test:
 	iverilog -o blink test.vt blink.v i2c_master.v uart_tx.v uart_rx.v  && ./blink 
 
+i2cdecode:	Makefile i2cdecode.c
+	gcc -Wall -g -o i2cdecode i2cdecode.c
 
 # Run the simulation to create the .vcd file, then view it with gtkwave.
 # If you don't have gtkwave, you can get it from http://gtkwave.sourceforge.net/

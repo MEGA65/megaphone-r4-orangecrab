@@ -264,7 +264,7 @@ end
             //write command
             sda_int <= data_tx[bit_cnt];
             //write first bit of data
-            //              report "switching to wr following command";
+             $display("switching to wr following command. Writing $%02x",data_tx);
             state <= wr;
             //go to write byte
           end
@@ -279,10 +279,12 @@ end
         end
         wr : begin
           //write byte of transaction
-          //            report "writing data bit " & integer'image(bit_cnt) & " of $" & to_hstring(data_tx) & " as " & std_logic'image(sda_int);
+           //            report "writing data bit " & integer'image(bit_cnt) & " of $" & to_hstring(data_tx) & " as " & std_logic'image(sda_int);
           busy <= 1'b1;
           //resume busy if continuous mode
           if((bit_cnt == 0)) begin
+             $display("Finished writing byte $%02x",data_tx);
+	     
             //write byte transmit finished
             sda_int <= 1'b1;
             //release sda for slave acknowledge
@@ -350,7 +352,9 @@ end
               //another write
               sda_int <= data_wr[bit_cnt];
               //write first bit of data
-              //                report "re-trigging byte write, because ena is still high";
+              $display("re-trigging byte write of $%02x, because ena is still high, and addr is unchanged at $%02x",
+		       data_wr,
+		       addr_rw);
               state <= wr;
               //go to write byte
             end

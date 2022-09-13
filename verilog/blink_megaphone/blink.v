@@ -224,16 +224,12 @@ module top (
 //      rgb_led0_r = ~uart_xilinx0_txready;      
 //      rgb_led0_g = ~uart_xilinx0_dispatched;      
 //      rgb_led0_b = ~1'b0;      
-      
+
       if ( uart_xilinx0_txready == 1'b1 && uart_xilinx0_dispatched == 1'b0 ) begin
 	 // Send next char via UART
 	 uart_xilinx0_dispatched <= 1'b1;
 	 uart_xilinx0_txtrigger <= 1'b1;
 
-	 if (counter[21:0] == 22'd0) begin
-	    uart_xilinx0_txstate <= 8'd0;	 
-	 end	 
-	 
 	 if (uart_xilinx0_txstate < 255) uart_xilinx0_txstate <= uart_xilinx0_txstate + 1;
 
 	 $display("Sending char ",uart_xilinx0_txstate);
@@ -331,9 +327,77 @@ module top (
       if ( uart_xilinx0_rxready == 1 ) begin
 	 uart_xilinx0_rxack <= 1'b1;
 	 
-	 // XXX DEBUG : re-display UART message on any serial RX
-	 uart_xilinx0_txstate <= 8'd0;
+	 case (uart_xilinx0_rxdata)
+	   8'd13,8'd10: // ENTER = display ID message
+	     uart_xilinx0_txstate <= 8'd0;
+	   8'h40: power_rail_modem1 <= 1'b1;
+	   8'h41: power_rail_modem2 <= 1'b1;
+	   8'h42: power_rail_rfd900 <= 1'b1;
+	   8'h43: power_rail_esp32 <= 1'b1;
+	   8'h44: power_rail_screen <= 1'b1;
+	   8'h45: power_rail_speaker_amplifier <= 1'b1;
+	   8'h46: lcd_standby <= 1'b1;
+	   8'h47: modem1_wake_n <= 1'b1;
+	   8'h48: power_rail_mic <= 1'b1;
+	   8'h49: cm4_en <= 1'b1;
+	   8'h4a: cm4_wifi_en <= 1'b1;
+	   8'h4b: cm4_bt_en <= 1'b1;
+	   8'h4c: lcd_display_en <= 1'b1;
+	   8'h4d: lcd_backlight_en <= 1'b1;
+	   8'h4e: esp32_reset_n <= 1'b1;
+	   8'h4f: hdmi_hotplug_detect_enable <= 1'b1;
+	   8'h50: hdmi_en <= 1'b1;
+	   8'h51: hdmi_rx_enable <= 1'b1;
+	   8'h52: modem1_reset_n <= 1'b1;
+	   8'h53: modem2_wake_n <= 1'b1;
+	   8'h54: modem2_reset_n <= 1'b1;
+	   8'h55: modem2_wireless_disable <= 1'b1;
+	   8'h56: modem1_wireless_disable <= 1'b1;
+	   8'h57: power_rail_headphone_amplifier <= 1'b1;
+	   8'h58: hdmi_hotplug_detect <= 1'b1;
+	   8'h59: hdmi_cec_a <= 1'b1;
+	   8'h5a: otp_hold_n <= 1'b1;
+	   8'h5b: otp_reset_n <= 1'b1;
+	   8'h5c: otp_cs2 <= 1'b1;
+	   8'h5d: otp_cs1 <= 1'b1;
+	   8'h5e: otp_wp_n <= 1'b1;
+	   8'h5f: otp_si <= 1'b1;
 
+	   8'h60: power_rail_modem1 <= 1'b0;
+	   8'h61: power_rail_modem2 <= 1'b0;
+	   8'h62: power_rail_rfd900 <= 1'b0;
+	   8'h63: power_rail_esp32 <= 1'b0;
+	   8'h64: power_rail_screen <= 1'b0;
+	   8'h65: power_rail_speaker_amplifier <= 1'b0;
+	   8'h66: lcd_standby <= 1'b0;
+	   8'h67: modem1_wake_n <= 1'b0;
+	   8'h68: power_rail_mic <= 1'b0;
+	   8'h69: cm4_en <= 1'b0;
+	   8'h6a: cm4_wifi_en <= 1'b0;
+	   8'h6b: cm4_bt_en <= 1'b0;
+	   8'h6c: lcd_display_en <= 1'b0;
+	   8'h6d: lcd_backlight_en <= 1'b0;
+	   8'h6e: esp32_reset_n <= 1'b0;
+	   8'h6f: hdmi_hotplug_detect_enable <= 1'b0;
+	   8'h70: hdmi_en <= 1'b0;
+	   8'h71: hdmi_rx_enable <= 1'b0;
+	   8'h72: modem1_reset_n <= 1'b0;
+	   8'h73: modem2_wake_n <= 1'b0;
+	   8'h74: modem2_reset_n <= 1'b0;
+	   8'h75: modem2_wireless_disable <= 1'b0;
+	   8'h76: modem1_wireless_disable <= 1'b0;
+	   8'h77: power_rail_headphone_amplifier <= 1'b0;
+	   8'h78: hdmi_hotplug_detect <= 1'b0;
+	   8'h79: hdmi_cec_a <= 1'b0;
+	   8'h7a: otp_hold_n <= 1'b0;
+	   8'h7b: otp_reset_n <= 1'b0;
+	   8'h7c: otp_cs2 <= 1'b0;
+	   8'h7d: otp_cs1 <= 1'b0;
+	   8'h7e: otp_wp_n <= 1'b0;
+	   8'h7f: otp_si <= 1'b0;
+
+	 endcase; 
+	       
 	 rgb_led0_r <= ~rgb_led0_r;
       end
       
@@ -407,7 +471,6 @@ module top (
 	      // Read first byte (register 0)
 	      i2c_command_en <= 1;	      
 	      i2c_rw <= 1;
-
 	     end	   
 	   8'd1: begin
 	      // Read second byte (register 1)
@@ -419,9 +482,18 @@ module top (
 
 	      // First byte is now available
 	      case (io_expander)
-		2'b00: io_expander0_port0 <= i2c_rdata;
-		2'b01: io_expander1_port0 <= i2c_rdata;
-		2'b10: io_expander2_port0 <= i2c_rdata;
+		2'b00: begin 
+		   io_expander0_port0 <= i2c_rdata;
+		   if (io_expander0_port0 != i2c_rdata) uart_xilinx0_txstate <= 8'd0;
+		end
+		2'b01: begin
+		   io_expander1_port0 <= i2c_rdata;
+		   if (io_expander1_port0 != i2c_rdata) uart_xilinx0_txstate <= 8'd0;
+		end
+		2'b10: begin
+		   io_expander2_port0 <= i2c_rdata;
+		   if (io_expander2_port0 != i2c_rdata) uart_xilinx0_txstate <= 8'd0;
+		end
 	      endcase; // case (io_expander)	      
 
 	      // Send address and start write transaction to select register 2
@@ -439,9 +511,18 @@ module top (
 
 	      // And second read byte is now available
 	      case (io_expander)
-		2'b00: io_expander0_port1 <= i2c_rdata;
-		2'b01: io_expander1_port1 <= i2c_rdata;
-		2'b10: io_expander2_port1 <= i2c_rdata;
+		2'b00: begin
+		   io_expander0_port1 <= i2c_rdata;
+		   if (io_expander0_port1 != i2c_rdata) uart_xilinx0_txstate <= 8'd0;
+		end
+		2'b01: begin
+		   io_expander1_port1 <= i2c_rdata;
+		   if (io_expander1_port1 != i2c_rdata) uart_xilinx0_txstate <= 8'd0;
+		end
+		2'b10: begin
+		   io_expander2_port1 <= i2c_rdata;
+		   if (io_expander2_port1 != i2c_rdata) uart_xilinx0_txstate <= 8'd0;
+		end
 	      endcase; // case (io_expander)	      	      
 	      
 	      // Write to register 2 : Power rail enables

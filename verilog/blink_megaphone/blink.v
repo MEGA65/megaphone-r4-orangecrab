@@ -146,6 +146,8 @@ module top (
    reg [7:0]	   io_expander2_port1;
 
    reg [3:0] 	   loop_count;
+
+   reg 		   debugstrobe;
    
    
    //
@@ -157,6 +159,8 @@ module top (
 
    initial begin
 
+      debugstrobe <= 1'b0;      
+      
       loop_count <= 4'd0;
       
       rgb_led0_r <= ~0;
@@ -403,24 +407,23 @@ module top (
 	      // Read first byte (register 0)
 	      i2c_command_en <= 1;	      
 	      i2c_rw <= 1;
+
 	     end	   
 	   8'd1: begin
-	      // Read first byte (register 1)
+	      // Read second byte (register 1)
 	      i2c_command_en <= 1;	      
 	      i2c_rw <= 1;
+	     end	   
+
+	   8'd2: begin
+
+	      // First byte is now available
 	      case (io_expander)
 		2'b00: io_expander0_port0 <= i2c_rdata;
 		2'b01: io_expander1_port0 <= i2c_rdata;
 		2'b10: io_expander2_port0 <= i2c_rdata;
 	      endcase; // case (io_expander)	      
-	     end	   
 
-	   8'd2: begin
-	      case (io_expander)
-		2'b00: io_expander0_port1 <= i2c_rdata;
-		2'b01: io_expander1_port1 <= i2c_rdata;
-		2'b10: io_expander2_port1 <= i2c_rdata;
-	      endcase; // case (io_expander)	      
 	      // Send address and start write transaction to select register 2
 	      // except during start-up, when we initialise the other registers
 	      i2c_command_en <= 1;
@@ -433,12 +436,20 @@ module top (
 	      i2c_wdata[0] <= 1'b0;     
 	     end
  	   8'd3: begin
+
+	      // And second read byte is now available
+	      case (io_expander)
+		2'b00: io_expander0_port1 <= i2c_rdata;
+		2'b01: io_expander1_port1 <= i2c_rdata;
+		2'b10: io_expander2_port1 <= i2c_rdata;
+	      endcase; // case (io_expander)	      	      
+	      
 	      // Write to register 2 : Power rail enables
 	      // (or reg 4 (inversions of port 0) or reg 6 (ddr of port 0)
 	      i2c_command_en <= 1;	      
 	      i2c_rw <= 0;
 	      case (io_expander)
-		2'b00: begin
+		2'b00: begin // U14
 		   case (reg_pair)
 		     2'b01: begin	       
 			i2c_wdata[0] <= power_rail_modem1;
@@ -456,7 +467,7 @@ module top (
 		     2'b11: i2c_wdata <= 8'b11000000; // port 0 DDR
 		   endcase; // case (reg_pair)		  
 		end // case: 2'b00
-		2'b01: begin
+		2'b01: begin // U13
 		   case (reg_pair)
 		     2'b01: begin	       
 			i2c_wdata[0] <= cm4_en;			
@@ -472,7 +483,7 @@ module top (
 		     2'b11: i2c_wdata <= 8'b11000000; // port 0 DDR
 		   endcase; // case (reg_pair)		   
 		end // case: 2'b01		
-		2'b10: begin
+		2'b10: begin // U12
 		   case (reg_pair)
 		     2'b01: begin	       
 			i2c_wdata[0] <= 1'b1;  // D-PAD inputs
@@ -491,11 +502,12 @@ module top (
 	      endcase; // case (io_expander)
 	   end // case: 8'd3	   
  	   8'd4: begin
+
 	      // Write to register 3 : Power rail enable in bit 5 for headphones amplifier
 	      i2c_command_en <= 1;	      
 	      i2c_rw <= 0;
 	      case (io_expander)
-		2'b00: begin
+		2'b00: begin // U14
 		   case (reg_pair)
 		     2'b01: begin
 			i2c_wdata[0] <= modem1_reset_n;		   
@@ -511,7 +523,7 @@ module top (
 		     2'b11: i2c_wdata <= 8'b11011111; // port 1 DDR
 		   endcase
 		end	  
-		2'b01: begin
+		2'b01: begin // U13
 		   case (reg_pair)
 		     2'b01: begin
 			i2c_wdata[0] <= hdmi_cec_a;		   
@@ -527,7 +539,7 @@ module top (
 		     2'b11: i2c_wdata <= 8'b01000000; // port 1 DDR
 		   endcase
 		end // case: 2'b01
-		2'b10: begin
+		2'b10: begin // U12
 		   case (reg_pair)
 		     2'b01: begin	       
 			i2c_wdata[0] <= 1'b1;  // S3 buttons

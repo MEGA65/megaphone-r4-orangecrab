@@ -35,7 +35,7 @@ initial
     $dumpfile("test.vcd");
      $dumpvars(0);     
      $display("starting");
-     for (cycles=0;cycles<4000000;cycles++)
+     for (cycles=0;cycles<400000;cycles++)
        begin
 	  clk48 = 1'b1; 
 	  #20; // high for 20 * timescale = 20 ns

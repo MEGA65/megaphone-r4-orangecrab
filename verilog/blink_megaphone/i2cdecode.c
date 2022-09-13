@@ -56,6 +56,10 @@ int main(int argc,char **argv)
   int scl_last=0;
   int sda_last=0;
 
+  unsigned char debugstrobe_char=0;
+  int debugstrobe_val=0;
+  int debugstrobe_last=0;
+
   int i2c_bit=0;
   int i2c_byte=0;
 
@@ -76,6 +80,12 @@ int main(int argc,char **argv)
       if (!strcmp(sig,"sda")) {
 	sda_char=c;
 	fprintf(stderr,"INFO: SDA signal is indicated by %c\n",sda_char);
+      }
+    }
+    if (sscanf(line,"$var reg 1 %c %s $end%n",&c,sig,&n)==2) {
+      if (!strcmp(sig,"debugstrobe")) {
+	debugstrobe_char=c;
+	fprintf(stderr,"INFO: debug strobe signal is indicated by %c\n",debugstrobe_char);
       }      
     }
 
@@ -83,6 +93,11 @@ int main(int argc,char **argv)
     if (sscanf(line,"#%lld",&nexttimestamp)==1) {
       //      fprintf(stderr,"INFO: SCL=%c, SDA=%c @ %lld\n",scl_val,sda_val,timestamp);
 
+      if (debugstrobe_val!=debugstrobe_last) {
+	if (debug) fprintf(stderr,"DEBUG: %16lld DEBUG STROBE SPOTTED\n",timestamp);
+      }
+
+      
 #define IDLE 0
 #define START 1
 #define XFER 2
@@ -146,6 +161,10 @@ int main(int argc,char **argv)
     }
     if (line[1]==sda_char&&line[2]<' ') {
       sda_val=line[0];
+    }
+    if (line[1]==debugstrobe_char&&line[2]<' ') {
+      debugstrobe_val=line[0];
+      fprintf(stderr,"DEBUGSTROBE!\n");
     }
 
     line[0]=0; fgets(line,1024,f);

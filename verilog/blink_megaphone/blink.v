@@ -559,7 +559,7 @@ module top (
 			gpio_0 <= power_rail_mic;			
 		     end
 	             2'b10: i2c_wdata <= 8'h00; // port 0 inversions
-		     2'b11: i2c_wdata <= 8'b11000000; // port 0 DDR
+		     2'b11: i2c_wdata <= 8'b00000000; // port 0 DDR
 		   endcase; // case (reg_pair)		  
 		end // case: 2'b00
 		2'b01: begin // U13

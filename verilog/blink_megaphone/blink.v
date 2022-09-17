@@ -402,11 +402,10 @@ module top (
 	   8'h7e: otp_wp_n <= 1'b0;
 	   8'h7f: otp_si <= 1'b0;
 
-	   8'h2e: // . = power off main FPGA
+	   8'h2e: // . = request cut power to main FPGA (/INT will overrride it, though)
 	     main_fpga_poweroff_n <= 1'b0;
-	   8'h3a: // : = stop requesting power off to main FPGA
+	   8'h3a: // : = stop requesting power off to main FPGA (power will stay on after /INT is released)
 	     main_fpga_poweroff_n <= 1'b1;
-	   
 	 endcase; 
 	       
 	 rgb_led0_r <= ~rgb_led0_r;

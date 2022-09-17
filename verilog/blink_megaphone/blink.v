@@ -138,7 +138,7 @@ module top (
    reg 		   otp_cs1;
    reg 		   otp_wp_n;
    reg 		   otp_si;
-   reg 		   main_fpga_poweroff_n;
+   reg [7:0] 	   main_fpga_poweroff_counter;   
 
    reg [7:0]	   io_expander0_port0;
    reg [7:0]	   io_expander0_port1;
@@ -216,15 +216,12 @@ module top (
       otp_cs1 <= 1'b0;
       otp_wp_n <= 1'b0;
       otp_si <= 1'b0;
-      main_fpga_poweroff_n <= 1'b1;            
+      main_fpga_poweroff_counter <= 8'd0;            
       
    end
    
    always @(posedge clk48) begin
 
-      // Propagate main FPGA power rail cut signal
-      gpio_a0 <= main_fpga_poweroff_n;      
-      
 //      $display("txready=",uart_xilinx0_txready,", dispatched=", uart_xilinx0_dispatched);
 
 //      rgb_led0_r = ~uart_xilinx0_txready;      
@@ -329,11 +326,21 @@ module top (
 	 uart_xilinx0_txtrigger <= 1'b0;	 
       end
 
+      if (main_fpga_poweroff_counter != 8'd0) begin
+	 gpio_a0 <= 1'b0;
+	 main_fpga_poweroff_counter <= main_fpga_poweroff_counter - 1;	 
+      end else begin
+	 gpio_a0 <= 1'b1;
+      end
+      
       uart_xilinx0_rxack <= 1'b0;      
       if ( uart_xilinx0_rxready == 1 ) begin
 	 uart_xilinx0_rxack <= 1'b1;
 	 
 	 case (uart_xilinx0_rxdata)
+	   8'h2e: // . = request cut power to main FPGA (/INT will overrride it, though)
+	     main_fpga_poweroff_counter  <= 8'd255;
+	   
 	   8'd13,8'd10: // ENTER = display ID message
 	     uart_xilinx0_txstate <= 8'd0;
 	   8'h40: power_rail_modem1 <= 1'b1;
@@ -402,10 +409,7 @@ module top (
 	   8'h7e: otp_wp_n <= 1'b0;
 	   8'h7f: otp_si <= 1'b0;
 
-	   8'h2e: // . = request cut power to main FPGA (/INT will overrride it, though)
-	     main_fpga_poweroff_n <= 1'b0;
-	   8'h3a: // : = stop requesting power off to main FPGA (power will stay on after /INT is released)
-	     main_fpga_poweroff_n <= 1'b1;
+	   
 	 endcase; 
 	       
 	 rgb_led0_r <= ~rgb_led0_r;

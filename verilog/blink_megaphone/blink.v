@@ -1,17 +1,18 @@
 `default_nettype none
 module top (
-	    input  clk48,
+	    input      clk48,
 	    output reg rgb_led0_r,
 	    output reg rgb_led0_g,
 	    output reg rgb_led0_b,
-	    output reg gpio_0,
-	    input  gpio_a0,
-	    output gpio_9,
-	    input gpio_6,
-	    inout  scl,
-	    inout  sda,
-	    input  usr_btn,
-	    output rst_n
+	    output reg gpio_0, // VCC_MIC/JOYSTICK enable
+	    output     gpio_a0, // FPGA Power Off (active low)
+	    output     gpio_9, // ESP32 UART TX
+	    input      gpio_6, // ESP32 UART RX
+	    
+	    inout      scl,
+	    inout      sda,
+	    input      usr_btn,
+	    output     rst_n
 	    );
 
    // Reset when btn0 is pressed for easy access to DFU mode
@@ -136,7 +137,8 @@ module top (
    reg 		   otp_cs2;
    reg 		   otp_cs1;
    reg 		   otp_wp_n;
-   reg 		   otp_si;   
+   reg 		   otp_si;
+   reg 		   main_fpga_poweroff_n;
 
    reg [7:0]	   io_expander0_port0;
    reg [7:0]	   io_expander0_port1;
@@ -159,6 +161,8 @@ module top (
 
    initial begin
 
+      gpio_a0 <= 1'b1;      
+            
       debugstrobe <= 1'b0;      
       
       loop_count <= 4'd0;
@@ -212,13 +216,15 @@ module top (
       otp_cs1 <= 1'b0;
       otp_wp_n <= 1'b0;
       otp_si <= 1'b0;
-      
-      
+      main_fpga_poweroff_n <= 1'b1;            
       
    end
    
    always @(posedge clk48) begin
 
+      // Propagate main FPGA power rail cut signal
+      gpio_a0 <= main_fpga_poweroff_n;      
+      
 //      $display("txready=",uart_xilinx0_txready,", dispatched=", uart_xilinx0_dispatched);
 
 //      rgb_led0_r = ~uart_xilinx0_txready;      
@@ -396,6 +402,11 @@ module top (
 	   8'h7e: otp_wp_n <= 1'b0;
 	   8'h7f: otp_si <= 1'b0;
 
+	   8'h2e: // . = power off main FPGA
+	     main_fpga_poweroff_n <= 1'b0;
+	   8'h3a: // : = stop requesting power off to main FPGA
+	     main_fpga_poweroff_n <= 1'b1;
+	   
 	 endcase; 
 	       
 	 rgb_led0_r <= ~rgb_led0_r;

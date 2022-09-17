@@ -356,7 +356,10 @@ module top (
 	   8'h4a: cm4_wifi_en <= 1'b1;
 	   8'h4b: cm4_bt_en <= 1'b1;
 	   8'h4c: lcd_display_en <= 1'b1;
-	   8'h4d: lcd_backlight_en <= 1'b1;
+	   8'h4d:
+	     // XXX Don't allow backlight on without screen power rail, to prevent
+	     // current back-flow through /SHDN pin on MEGAphone R4 PCB.
+	     lcd_backlight_en <= power_rail_screen;
 	   8'h4e: esp32_reset_n <= 1'b1;
 	   8'h4f: hdmi_hotplug_detect_enable <= 1'b1;
 	   8'h50: hdmi_en <= 1'b1;
@@ -380,7 +383,14 @@ module top (
 	   8'h61: power_rail_modem2 <= 1'b0;
 	   8'h62: power_rail_rfd900 <= 1'b0;
 	   8'h63: power_rail_esp32 <= 1'b0;
-	   8'h64: power_rail_screen <= 1'b0;
+	   8'h64: begin
+	      power_rail_screen <= 1'b0;
+	      // Work around a problem on the MEGAphone R4 PCB, where current can backflow through
+	      // the backlight enable into /SHDN and partially power the backlight controller.
+	      // Workaround is to take /SHDN low whenever disabling VCC_SCREEN, so that there is no
+	      // voltage difference anywhere to pull current in and power the backlight.
+	      lcd_backlight_en <= 1'b0;	      
+	   end
 	   8'h65: power_rail_speaker_amplifier <= 1'b0;
 	   8'h66: lcd_standby <= 1'b0;
 	   8'h67: modem1_wake_n <= 1'b0;

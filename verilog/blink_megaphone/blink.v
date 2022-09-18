@@ -20,8 +20,8 @@ module top (
 	    output     gpio_a4, // UART RX of Cellular Modem 2
 	    input      gpio_a5, // UART TX of Cellular Modem 1
 	    input      gpio_sck, // UART TX of Cellular Modem 2
-	    input      gpio_mosi, // FPGA_MUX1
-	    output     gpio_miso, // FPGA_MUX2
+	    output     gpio_mosi, // FPGA_MUX1
+	    input      gpio_miso, // FPGA_MUX2
 	    output     gpio_1, // FPGA_MUX4
        	    output reg gpio_0, // VCC_MIC/JOYSTICK enable (WAS FPIO_MUX3)
 
@@ -80,7 +80,7 @@ module top (
 			    .bit_rate_divisor(24'd23), // 2Mbs
 			    // XXX Connect to ESP32 UART for testing
 			    // .UART_RX(gpio_6),
-			    // Connect to FPGA_MUX2 to Xilinx FPGA
+			    // Connect to FPGA_MUX1 to Xilinx FPGA
 			    .UART_RX(gpio_miso),
 			    .data(uart_xilinx0_rxdata),
 			    .data_ready(uart_xilinx0_rxready),
@@ -95,8 +95,8 @@ module top (
 	    .SEND(uart_xilinx0_txtrigger),
 	    .READY(uart_xilinx0_txready),
 	    // XXX for now feed to ESP32 board UART pins during bring-up testing
-	    //	    .UART_TX(gpio_9)
-	    // Connect to FPGA_MUX1 = gpio_mosi
+	    // .UART_TX(gpio_9)
+	    // Connect to FPGA_MUX2 = gpio_mosi
 	    .UART_TX(gpio_mosi)	    
 	    );
    

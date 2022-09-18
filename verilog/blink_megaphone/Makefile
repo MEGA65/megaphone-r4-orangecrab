@@ -68,7 +68,7 @@ dfu: $(PROJ).dfu
 	nextpnr-ecp5 --json $< --textcfg $@ --25k --package CSFBGA285 --lpf ..$(PATH_SEP)orangecrab_${VERSION}.pcf
 
 # Generate the final bitstream from the pnr output.
-%.bit: %_out.config
+%.bit: %_out.config ../orangecrab_r0.2.pcf
 	ecppack --compress --freq 38.8 --input $< --bit $@
 
 # Add OrangeCrab's USB VID/PID to the bitstream, so it's ready for DFU xfer to the bootloader.

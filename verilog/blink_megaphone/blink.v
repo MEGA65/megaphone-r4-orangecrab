@@ -1,18 +1,38 @@
 `default_nettype none
 module top (
 	    input      clk48,
-	    output reg rgb_led0_r,
+
+	    input      usr_btn, // Push button on the board
+	    output     rst_n, // Pull low to reset FPGA
+	    
+	    output reg rgb_led0_r, // RGB LED
 	    output reg rgb_led0_g,
 	    output reg rgb_led0_b,
-	    output reg gpio_0, // VCC_MIC/JOYSTICK enable
-	    output     gpio_a0, // FPGA Power Off (active low)
-	    output     gpio_9, // ESP32 UART TX
-	    input      gpio_6, // ESP32 UART RX
-	    
-	    inout      scl,
+
+	    inout      scl, // I2C IO Expander interface
 	    inout      sda,
-	    input      usr_btn,
-	    output     rst_n
+
+	    // Long side connector 
+	    output     gpio_a0, // FPGA Power Off (active low)
+	    output     gpio_a1, // UART RX of CM4
+	    input      gpio_a2, // UART TX of CM4
+	    output     gpio_a3, // UART RX of Cellular Modem 1
+	    output     gpio_a4, // UART RX of Cellular Modem 2
+	    input      gpio_a5, // UART TX of Cellular Modem 1
+	    input      gpio_sck, // UART TX of Cellular Modem 2
+	    input      gpio_mosi, // FPGA_MUX1
+	    output     gpio_miso, // FPGA_MUX2
+	    output     gpio_1, // FPGA_MUX4
+       	    output reg gpio_0, // VCC_MIC/JOYSTICK enable (WAS FPIO_MUX3)
+
+	    // Short side connector
+	    output     gpio_13, // RFD900 1 UART RX
+	    input      gpio_12, // RFD900 1 UART TX
+	    output     gpio_11, // RFD900 2 UART RX
+	    input      gpio_10, // RFD900 2 UART TX
+	    output     gpio_9, // ESP32 UART TX
+	    input      gpio_6 // ESP32 UART RX
+	    	    
 	    );
 
    // Reset when btn0 is pressed for easy access to DFU mode
@@ -58,7 +78,10 @@ module top (
    uart_rx xilinx_uart0_rx (
 			    .clk(clk48),
 			    .bit_rate_divisor(24'd23), // 2Mbs
-			    .UART_RX(gpio_6),
+			    // XXX Connect to ESP32 UART for testing
+			    // .UART_RX(gpio_6),
+			    // Connect to FPGA_MUX2 to Xilinx FPGA
+			    .UART_RX(gpio_miso),
 			    .data(uart_xilinx0_rxdata),
 			    .data_ready(uart_xilinx0_rxready),
 			    .data_acknowledge(uart_xilinx0_rxack)
@@ -72,7 +95,9 @@ module top (
 	    .SEND(uart_xilinx0_txtrigger),
 	    .READY(uart_xilinx0_txready),
 	    // XXX for now feed to ESP32 board UART pins during bring-up testing
-	    .UART_TX(gpio_9)	    
+	    //	    .UART_TX(gpio_9)
+	    // Connect to FPGA_MUX1 = gpio_mosi
+	    .UART_TX(gpio_mosi)	    
 	    );
    
 
@@ -161,7 +186,7 @@ module top (
 
    initial begin
 
-      gpio_a0 <= 1'b1;      
+      gpio_a0 <= 1'b1;
             
       debugstrobe <= 1'b0;      
       
